@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>D3.js Interactive Bar Chart</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Raleway');
+        body {
+            background:#e6f2ff;
+        }
+        .canvas {
+            box-shadow:0px 0px 8px gray;
+            width:1100px;
+            background:white;
+            margin:auto;
+            margin-top:25px;
+        }
+        .axis text {
+            font:15px Raleway;
+        }
+        .title {
+            font:30px Raleway;
+        }
+        .caption {
+            font:12px Raleway;
+            text-align:center;
+            margin-top:-50px;
+            padding-bottom:50px;
+        }
+        .bar {
+            fill:orange;
+        
+        }
+        .tooltip text {
+            font:15px Raleway;
+        }
+
+        .tooltip rect {
+        width:100px;
+        height:50px;
+        fill:lightblue;
+
+        }
+    </style>
+</head>
+<body>
+    <div class="canvas">
+        <svg class="chart"></svg>
+        <div class="caption"></div>
+    </div>
+<!-- 
+    Start of JS
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.9.1/d3.min.js" crossorigin="anonymous"></script>
+<script>
+    $(document).ready(function() {
+      d3.json("https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/GDP-data.json", function(error, payload){
+          if(error) throw error;
+          var data = payload.data,
+              description = payload.description;
+      
+        //Set up canvas margin where description and axis label will go
+            var margin = {
+              top:80,
+              bottom:100,
+              left:80,
+              right:60
+            }
+        
+        //height and width of the chart area
+            var height = 600 - margin.top - margin.bottom,
+                width = 1100 - margin.left - margin.right;
+
+        //Creates a time based scale along the x axis so that it fits the width
+            var x = d3.scaleTime()
+              .range([0, width]);
+      
+        //Create a scaled version of the GDP so that it fits the height
+            var y = d3.scaleLinear()
+              .range([height,0]);
+        
+        //Variabilize(?) the HTML elements
+            var caption = d3.select('.caption'),
+                canvas = d3.select('.canvas'),
+                chart = d3.select('.chart')
+                  .attr('height', height + margin.top + margin.bottom)
+                  .attr('width', width + margin.left + margin.right)
+                .append('g')
+                  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");  
+          
+        //Use datasets to finish the scales.
+          y.domain([0, d3.max(data)[1]]);
+          x.domain([new Date(data[0][0]), new Date(data[data.length-1][0])]);
+        
+        //Declare the axes and the width of each individual bar
+          var xAxis = d3.axisBottom(x)
+            .ticks(d3.timeYear.every(5));
+          var yAxis = d3.axisLeft(y)
+            .ticks(10);
+          var barWidth = width/data.length;
+          
+        //Functions to generate and erase mouseover tooltip
+          function handleMouseOver(d, i){
+            var year = new Date(d[0]).getFullYear().toString();
+            var month = new Date(d[0]).getMonth();
+            d3.select(this).attr('style', 'fill:lightblue');
+            var tooltip = chart.append('g')
+                  .attr('class', 'tooltip')
+                  .attr('id', "data"+i)
+                  .attr('x', i*barWidth)
+                  .attr('y', d3.mouse(this)[1])
+            tooltip.append('rect')
+                  .attr('x', i*barWidth-50)
+                  .attr('y', d3.mouse(this)[1]-60);
+            tooltip.append('text')
+                  .text(year + " / " + month)
+                  .attr('x', i*barWidth-30)
+                  .attr('y', d3.mouse(this)[1]-40); 
+            tooltip.append('text')
+                  .text(d[1] + " bil")
+                  .attr('style', 'font-weight:800')
+                  .attr('x', i*barWidth-30)
+                  .attr('y', d3.mouse(this)[1]-20); 
+          }
+        
+          function handleMouseOut(d, i){
+            d3.select(this).attr('style', 'fill:orange');
+            chart.select("#data"+i).remove();
+          }
+        
+        //Append the title to the Chart svg element
+          chart.append('text')
+            .attr('class', "title")
+            .text("US " + payload.name.split(',')[0] + " by Quarter")
+            .attr('x', width/5)
+          
+        //Initialize all the bar, and mount the data to them. d and i are reserved
+          var bar = chart.selectAll('g')
+            .data(data)
+          .enter().append('g')
+            .attr('transform', function(d,i){return "translate(" + i*barWidth + ", 0)"});
+          
+        //Add a rectangle to each bar. Note the orientation issues in svg
+          bar.append('rect')
+            .attr('class', 'bar')
+            .attr('y', function(d){ return y(d[1]) })
+            .attr('height', function(d){return height - y(d[1])})
+            .attr('width', barWidth)
+            .on('mouseover', handleMouseOver)
+            .on('mouseout', handleMouseOut);
+        
+        //Append the xAxis to the chart
+          chart.append("g")
+            .attr('class', 'axis')
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+          
+        //Append the description to the caption element
+          caption.append('text')
+            .text(description);
+          
+        //Append the yAxis to the chart and the legend
+          chart.append('g')
+            .attr('class', 'axis')
+            .call(yAxis)
+            .append('text')
+            .text('US GDP (Billions)')
+            .attr('fill', 'black')
+            .attr('transform', 'rotate(270)')
+            .attr('y', 20)
+          
+        });
+    });
+
+</script>
+</body>
+</html>
